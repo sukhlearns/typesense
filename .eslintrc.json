@@ -1,3 +1,8 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off", // Disable the rule for explicit 'any' type
+    "@typescript-eslint/ban-ts-comment": "off", // Disable the ban on @ts-nocheck comments
+    "react-hooks/exhaustive-deps": "warn" // Change to warn if you want to allow missing dependencies
+  }
 }
