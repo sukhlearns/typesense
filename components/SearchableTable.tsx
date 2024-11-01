@@ -41,6 +41,7 @@ const SearchableTable = () => {
   const [manufacturers, setManufacturers] = useState<string[]>([]);
 
   const fetchResults = async (page: number) => {
+    // 
     const searchQuery = query.trim() !== '' ? query : '';
     setLoading(true);
     const res = await fetch(`/api/search?q=${searchQuery}&page=${page}&pageSize=${pageSize}`);
