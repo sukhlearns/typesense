@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
-
 interface Result {
   id: string;
   assignee?: {
@@ -17,8 +16,7 @@ interface Result {
   location?: {
     stationName: string;
   };
-  manufactured?: string;
-  manufacturer?: string;
+  manufactured?: string; // Assuming this is a date string
   model?: string;
   modelId?: string;
   notes?: string;
@@ -34,7 +32,10 @@ const SearchableTable = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortOrder, setSortOrder] = useState<{ [key: string]: 'asc' | 'desc' }>({
+    assignee: 'asc',
+    manufactured: 'asc',
+  });
   const [sortedResults, setSortedResults] = useState<Result[]>([]);
 
   const fetchResults = async (page: number) => {
@@ -65,26 +66,38 @@ const SearchableTable = () => {
   useEffect(() => {
     // Sort results based on the current sort order
     const sortedData = [...results].sort((a, b) => {
-      const nameA = (a.assignee?.firstName || '') + ' ' + (a.assignee?.lastName || '');
-      const nameB = (b.assignee?.firstName || '') + ' ' + (b.assignee?.lastName || '');
-      if (sortOrder === 'asc') {
-        return nameA.localeCompare(nameB);
+      const assigneeA = (a.assignee?.firstName || '') + ' ' + (a.assignee?.lastName || '');
+      const assigneeB = (b.assignee?.firstName || '') + ' ' + (b.assignee?.lastName || '');
+      const manufacturedA = a.manufactured ? new Date(a.manufactured).getTime() : 0;
+      const manufacturedB = b.manufactured ? new Date(b.manufactured).getTime() : 0;
+
+      if (sortOrder.assignee === 'asc') {
+        if (assigneeA < assigneeB) return -1;
+        if (assigneeA > assigneeB) return 1;
       } else {
-        return nameB.localeCompare(nameA);
+        if (assigneeA < assigneeB) return 1;
+        if (assigneeA > assigneeB) return -1;
+      }
+
+      if (sortOrder.manufactured === 'asc') {
+        return manufacturedA - manufacturedB;
+      } else {
+        return manufacturedB - manufacturedA;
       }
     });
     setSortedResults(sortedData);
   }, [results, sortOrder]);
 
+  // Shortened header names
   const columnHeaders = [
     'Assignee',
     'Category',
-    'Decommissioned',
+    'Decomm.',
     'ID',
-    'In Maintenance',
-    'Last Maintenance',
+    'In Maint.',
+    'Last Maint.',
     'Location',
-    'Manufactured',
+    'Manufact.',
     'Manufacturer',
     'Model',
     'Model ID',
@@ -103,11 +116,25 @@ const SearchableTable = () => {
       }
       return JSON.stringify(value);
     }
+  
+    // Format date strings for 'lastMaintenance' and 'manufactured'
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) { // Check if the date is valid
+        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      } else {
+        console.warn(`Invalid date: ${value}`); // Log any invalid dates for debugging
+      }
+    }
+  
     return String(value);
   };
-
-  const handleSort = () => {
-    setSortOrder((prevOrder) => (prevOrder === 'asc' ? 'desc' : 'asc'));
+  
+  const handleSort = (column: 'assignee' | 'manufactured') => {
+    setSortOrder((prevOrder) => ({
+      ...prevOrder,
+      [column]: prevOrder[column] === 'asc' ? 'desc' : 'asc',
+    }));
   };
 
   const handlePageChange = (newPage: number) => {
@@ -137,10 +164,17 @@ const SearchableTable = () => {
                   <th
                     key={header}
                     className="table-header py-3 px-4 border-b border-gray-300 text-left text-sm font-medium text-gray-700"
-                    onClick={header === 'Assignee' ? handleSort : undefined}
-                    style={header === 'Assignee' ? { cursor: 'pointer' } : {}}
+                    onClick={header === 'Assignee' || header === 'Manufact.' ? () => handleSort(header === 'Assignee' ? 'assignee' : 'manufactured') : undefined}
+                    style={{
+                      cursor: header === 'Assignee' || header === 'Manufact.' ? 'pointer' : 'default',
+                      whiteSpace: 'nowrap', // Prevents wrapping
+                      overflow: 'hidden',    // Hides overflow content
+                      textOverflow: 'ellipsis', // Adds ellipsis for overflow text
+                      minWidth: '100px',     // Sets a minimum width for the headers
+                    }}
                   >
-                    {header} {header === 'Assignee' && (sortOrder === 'asc' ? '▲' : '▼')}
+                    {header} {header === 'Assignee' && (sortOrder.assignee === 'asc' ? '▲' : '▼')}
+                    {header === 'Manufact.' && (sortOrder.manufactured === 'asc' ? '▲' : '▼')}
                   </th>
                 ))}
               </tr>
@@ -154,9 +188,9 @@ const SearchableTable = () => {
                     <td className="py-3 px-4 border-b border-gray-300">{String(item.decommissioned)}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{item.id}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{String(item.inMaintenance)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.lastMaintenance}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.lastMaintenance)}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.location)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.manufactured}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.manufactured)}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{item.manufacturer}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{item.model}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{item.modelId}</td>
@@ -168,30 +202,29 @@ const SearchableTable = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columnHeaders.length} className="py-3 px-4 text-center text-gray-500">
-                    No results found.
-                  </td>
+                  <td colSpan={columnHeaders.length} className="py-3 px-4 text-center">No results found.</td>
                 </tr>
               )}
             </tbody>
           </table>
         )}
       </div>
-      <div className="mt-4 flex justify-between items-center">
+      {/* Pagination controls */}
+      <div className="flex justify-between items-center mt-4">
         <button
-          onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+          onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 transition duration-200"
+          className={`py-2 px-4 text-white rounded-lg ${currentPage === 1 ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
         >
           Previous
         </button>
-        <span className="text-sm text-gray-600">
+        <span>
           Page {currentPage} of {totalPages}
         </span>
         <button
-          onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+          onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-4 py-2 bg-blue-500 text-white rounded disabled:bg-gray-300 transition duration-200"
+          className={`py-2 px-4 text-white rounded-lg ${currentPage === totalPages ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
         >
           Next
         </button>
