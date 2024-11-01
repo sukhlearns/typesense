@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+/* This will prevent text selection on table headers */
+.table-header {
+  user-select: none; /* Prevent text selection */
+  cursor: pointer; /* Change cursor to pointer to indicate clickability */
+}
+

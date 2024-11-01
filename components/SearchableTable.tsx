@@ -1,6 +1,8 @@
 // @ts-nocheck
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 interface Result {
   id: string;
@@ -32,6 +34,8 @@ const SearchableTable = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortedResults, setSortedResults] = useState<Result[]>([]);
 
   const fetchResults = async (page: number) => {
     const searchQuery = query.trim() !== '' ? query : '';
@@ -57,6 +61,20 @@ const SearchableTable = () => {
     // Fetch results whenever the current page changes
     fetchResults(currentPage);
   }, [currentPage]);
+
+  useEffect(() => {
+    // Sort results based on the current sort order
+    const sortedData = [...results].sort((a, b) => {
+      const nameA = (a.assignee?.firstName || '') + ' ' + (a.assignee?.lastName || '');
+      const nameB = (b.assignee?.firstName || '') + ' ' + (b.assignee?.lastName || '');
+      if (sortOrder === 'asc') {
+        return nameA.localeCompare(nameB);
+      } else {
+        return nameB.localeCompare(nameA);
+      }
+    });
+    setSortedResults(sortedData);
+  }, [results, sortOrder]);
 
   const columnHeaders = [
     'Assignee',
@@ -88,6 +106,10 @@ const SearchableTable = () => {
     return String(value);
   };
 
+  const handleSort = () => {
+    setSortOrder((prevOrder) => (prevOrder === 'asc' ? 'desc' : 'asc'));
+  };
+
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
   };
@@ -112,15 +134,20 @@ const SearchableTable = () => {
             <thead className="bg-gray-200">
               <tr>
                 {columnHeaders.map((header) => (
-                  <th key={header} className="py-3 px-4 border-b border-gray-300 text-left text-sm font-medium text-gray-700">
-                    {header}
+                  <th
+                    key={header}
+                    className="table-header py-3 px-4 border-b border-gray-300 text-left text-sm font-medium text-gray-700"
+                    onClick={header === 'Assignee' ? handleSort : undefined}
+                    style={header === 'Assignee' ? { cursor: 'pointer' } : {}}
+                  >
+                    {header} {header === 'Assignee' && (sortOrder === 'asc' ? '▲' : '▼')}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {results.length > 0 ? (
-                results.map((item) => (
+              {sortedResults.length > 0 ? (
+                sortedResults.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition duration-200">
                     <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.assignee)}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{item.category}</td>
