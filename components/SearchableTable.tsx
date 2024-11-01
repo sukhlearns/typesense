@@ -16,13 +16,14 @@ interface Result {
   location?: {
     stationName: string;
   };
-  manufactured?: string; // Assuming this is a date string
+  manufactured?: string;
   model?: string;
   modelId?: string;
   notes?: string;
   serial?: string;
   size?: string;
   verified?: boolean;
+  manufacturer?: string;
 }
 
 const SearchableTable = () => {
@@ -32,11 +33,12 @@ const SearchableTable = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
-  const [sortOrder, setSortOrder] = useState<{ [key: string]: 'asc' | 'desc' }>({
-    assignee: 'asc',
-    manufactured: 'asc',
-  });
+  const [sortOrder, setSortOrder] = useState<{ [key: string]: 'asc' | 'desc' }>({ assignee: 'asc' });
   const [sortedResults, setSortedResults] = useState<Result[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedManufacturer, setSelectedManufacturer] = useState<string>('');
+  const [manufacturers, setManufacturers] = useState<string[]>([]);
 
   const fetchResults = async (page: number) => {
     const searchQuery = query.trim() !== '' ? query : '';
@@ -45,12 +47,19 @@ const SearchableTable = () => {
     const data = await res.json();
     setResults(Array.isArray(data.documents) ? data.documents : []);
     setTotalResults(data.totalResults);
+
+    const uniqueCategories = Array.from(new Set(data.documents.map((item: Result) => item.category).filter(Boolean)));
+    setCategories(uniqueCategories);
+    
+    const uniqueManufacturers = Array.from(new Set(data.documents.map((item: Result) => item.manufacturer).filter(Boolean)));
+    setManufacturers(uniqueManufacturers);
+
     setLoading(false);
   };
 
   const handleSearch = () => {
-    setCurrentPage(1); // Reset to page 1 when a new search is performed
-    fetchResults(1); // Fetch results for the first page
+    setCurrentPage(1);
+    fetchResults(1);
   };
 
   useEffect(() => {
@@ -59,36 +68,18 @@ const SearchableTable = () => {
   }, [query]);
 
   useEffect(() => {
-    // Fetch results whenever the current page changes
     fetchResults(currentPage);
   }, [currentPage]);
 
   useEffect(() => {
-    // Sort results based on the current sort order
     const sortedData = [...results].sort((a, b) => {
       const assigneeA = (a.assignee?.firstName || '') + ' ' + (a.assignee?.lastName || '');
       const assigneeB = (b.assignee?.firstName || '') + ' ' + (b.assignee?.lastName || '');
-      const manufacturedA = a.manufactured ? new Date(a.manufactured).getTime() : 0;
-      const manufacturedB = b.manufactured ? new Date(b.manufactured).getTime() : 0;
-
-      if (sortOrder.assignee === 'asc') {
-        if (assigneeA < assigneeB) return -1;
-        if (assigneeA > assigneeB) return 1;
-      } else {
-        if (assigneeA < assigneeB) return 1;
-        if (assigneeA > assigneeB) return -1;
-      }
-
-      if (sortOrder.manufactured === 'asc') {
-        return manufacturedA - manufacturedB;
-      } else {
-        return manufacturedB - manufacturedA;
-      }
+      return sortOrder.assignee === 'asc' ? assigneeA.localeCompare(assigneeB) : assigneeB.localeCompare(assigneeA);
     });
     setSortedResults(sortedData);
   }, [results, sortOrder]);
 
-  // Shortened header names
   const columnHeaders = [
     'Assignee',
     'Category',
@@ -117,20 +108,20 @@ const SearchableTable = () => {
       return JSON.stringify(value);
     }
   
-    // Format date strings for 'lastMaintenance' and 'manufactured'
     if (typeof value === 'string') {
+      // Check if the string is a valid ISO date
       const date = new Date(value);
-      if (!isNaN(date.getTime())) { // Check if the date is valid
+      if (!isNaN(date.getTime())) {
+        // Convert date to a readable format (e.g., Oct 28, 2024)
         return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-      } else {
-        console.warn(`Invalid date: ${value}`); // Log any invalid dates for debugging
       }
     }
   
     return String(value);
   };
   
-  const handleSort = (column: 'assignee' | 'manufactured') => {
+
+  const handleSort = (column: 'assignee') => {
     setSortOrder((prevOrder) => ({
       ...prevOrder,
       [column]: prevOrder[column] === 'asc' ? 'desc' : 'asc',
@@ -143,88 +134,121 @@ const SearchableTable = () => {
 
   const totalPages = Math.ceil(totalResults / pageSize);
 
+  const filteredResults = sortedResults.filter(item => {
+    const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
+    const matchesManufacturer = selectedManufacturer ? item.manufacturer === selectedManufacturer : true;
+    return matchesCategory && matchesManufacturer;
+  });
+
   return (
-    <div className="p-6 bg-gray-100 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4">Equipment Search</h2>
+    <div className="p-8 bg-gray-50 rounded-lg shadow-md">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">Equipment Search</h2>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search equipment..."
-        className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring focus:ring-blue-300 transition duration-200"
+        className="w-full p-3 border-2 border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200 mb-4"
       />
-      <div className="overflow-x-auto mt-4">
+      
+      <div className="flex space-x-4 mb-6">
+        <div className="flex-1">
+          <label className="block mb-2 text-sm font-medium text-gray-700">Filter by Category:</label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full p-2 border-2 border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex-1">
+          <label className="block mb-2 text-sm font-medium text-gray-700">Filter by Manufacturer:</label>
+          <select
+            value={selectedManufacturer}
+            onChange={(e) => setSelectedManufacturer(e.target.value)}
+            className="w-full p-2 border-2 border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+          >
+            <option value="">All Manufacturers</option>
+            {manufacturers.map((manufacturer) => (
+              <option key={manufacturer} value={manufacturer}>{manufacturer}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto mt-6">
         {loading ? (
-          <div className="text-center py-4 text-gray-600">Loading...</div>
+          <div className="text-center py-4 text-gray-600 animate-pulse">🔄 Loading...</div>
         ) : (
           <table className="min-w-full bg-white rounded-lg shadow-lg">
-            <thead className="bg-gray-200">
+            <thead className="bg-blue-600 text-white">
               <tr>
                 {columnHeaders.map((header) => (
                   <th
                     key={header}
-                    className="table-header py-3 px-4 border-b border-gray-300 text-left text-sm font-medium text-gray-700"
-                    onClick={header === 'Assignee' || header === 'Manufact.' ? () => handleSort(header === 'Assignee' ? 'assignee' : 'manufactured') : undefined}
-                    style={{
-                      cursor: header === 'Assignee' || header === 'Manufact.' ? 'pointer' : 'default',
-                      whiteSpace: 'nowrap', // Prevents wrapping
-                      overflow: 'hidden',    // Hides overflow content
-                      textOverflow: 'ellipsis', // Adds ellipsis for overflow text
-                      minWidth: '100px',     // Sets a minimum width for the headers
-                    }}
+                    className="table-header py-4 px-4 border-b border-gray-300 text-left text-sm font-semibold cursor-pointer"
+                    onClick={header === 'Assignee' ? () => handleSort('assignee') : undefined}
                   >
-                    {header} {header === 'Assignee' && (sortOrder.assignee === 'asc' ? '▲' : '▼')}
-                    {header === 'Manufact.' && (sortOrder.manufactured === 'asc' ? '▲' : '▼')}
+                    {header}
+                    {header === 'Assignee' && (
+                      <span className="inline-flex items-center ml-2">
+                        {sortOrder.assignee === 'asc' ? <i className="fas fa-sort-up" /> : <i className="fas fa-sort-down" />}
+                      </span>
+                    )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {sortedResults.length > 0 ? (
-                sortedResults.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition duration-200">
-                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.assignee)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.category}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{String(item.decommissioned)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.id}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{String(item.inMaintenance)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.lastMaintenance)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.location)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(item.manufactured)}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.manufacturer}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.model}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.modelId}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.notes}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.serial}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{item.size}</td>
-                    <td className="py-3 px-4 border-b border-gray-300">{String(item.verified)}</td>
+              {filteredResults.length > 0 ? (
+                filteredResults.map((result) => (
+                  <tr key={result.id} className="hover:bg-blue-100 transition-colors duration-200">
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.assignee)}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.category}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.decommissioned ? '✔️' : '❌'}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.id}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.inMaintenance ? '✔️' : '❌'}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.lastMaintenance)}</td>
+
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.location)}</td>
+<td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.manufactured)}</td>
+
+                    <td className="py-3 px-4 border-b border-gray-300">{result.model}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.modelId}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.notes}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.serial}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.size}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.verified ? '✔️' : '❌'}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={columnHeaders.length} className="py-3 px-4 text-center">No results found.</td>
+                  <td colSpan={columnHeaders.length} className="py-3 px-4 border-b border-gray-300 text-center text-gray-600">No results found.</td>
                 </tr>
               )}
             </tbody>
           </table>
         )}
       </div>
-      {/* Pagination controls */}
-      <div className="flex justify-between items-center mt-4">
+
+      <div className="mt-6 flex justify-between items-center">
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`py-2 px-4 text-white rounded-lg ${currentPage === 1 ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+          className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 transition duration-200 disabled:bg-gray-400"
         >
           Previous
         </button>
-        <span>
-          Page {currentPage} of {totalPages}
-        </span>
+        <span>{`Page ${currentPage} of ${totalPages}`}</span>
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`py-2 px-4 text-white rounded-lg ${currentPage === totalPages ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+          className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 transition duration-200 disabled:bg-gray-400"
         >
           Next
         </button>

@@ -9,7 +9,7 @@ const Home = () => {
         <title>Equipment Search</title>
       </Head>
       <main className="min-h-screen bg-gray-100 p-8">
-        <h1 className="text-2xl font-bold text-center mb-4">Equipment Search Table</h1>
+        {/* <h1 className="text-2xl font-bold text-center mb-4">Equipment Search Table</h1> */}
         <SearchableTable />
       </main>
     </div>
