@@ -1,10 +1,9 @@
 // @ts-nocheck
-
 import { NextApiRequest, NextApiResponse } from 'next';
 import client from '../../lib/typesenseClient';
 
 interface Document {
-  id: string; // Adjust this based on your actual document structure
+  id: string;
   serial: string;
   model: string;
   manufacturer: string;
@@ -16,43 +15,33 @@ interface Document {
   location: {
     stationName: string;
   };
-  [key: string]: any; // For additional dynamic fields if necessary
+  [key: string]: any;
 }
 
-// Define a type for the search response hit from Typesense
 interface SearchResponseHit {
-  document: Document; // The actual document
-  // Other properties returned by the search (e.g., score)
+  document: Document;
 }
 
 const searchHandler = async (req: NextApiRequest, res: NextApiResponse) => {
-  const { q } = req.query;
-
-  // Validate query parameter
-  if (!q || Array.isArray(q)) {
-    return res.status(400).json({ error: "Invalid query parameter." });
-  }
+  const { q, page = 1, pageSize = 10 } = req.query;
 
   try {
-    const searchResults = await client.collections('equipment').documents().search({
-      q: q as string,
+    const searchParams = {
+      q: q && q.trim() !== "" ? (q as string) : "*",
       query_by: "serial, model, manufacturer, category, assignee.firstName, assignee.lastName, location.stationName",
-      sort_by: "_text_match:desc", // Sort by relevance
-    });
+      page: parseInt(page as string, 10),
+      per_page: parseInt(pageSize as string, 10),
+    };
 
-    // Ensure we always return an array of documents
-    const documents: Document[] = searchResults.hits?.map((hit: SearchResponseHit) => ({
-      ...hit.document,
-    })) || [];
+    const searchResults = await client.collections('equipment').documents().search(searchParams);
 
-    res.status(200).json(documents);
+    const documents = searchResults.hits?.map((hit: SearchResponseHit) => hit.document) || [];
+    const totalResults = searchResults.found || 0;
+
+    res.status(200).json({ documents, totalResults });
   } catch (error: unknown) {
-    console.error("Error in search API:", error); // Log error details
-    if (error instanceof Error) {
-      res.status(500).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: "Internal Server Error" });
-    }
+    console.error("Error in search API:", error);
+    res.status(500).json({ error: error instanceof Error ? error.message : "Internal Server Error" });
   }
 };
 
