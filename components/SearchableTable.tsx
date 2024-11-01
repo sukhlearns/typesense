@@ -33,20 +33,30 @@ const SearchableTable = () => {
   const [pageSize] = useState<number>(10);
   const [loading, setLoading] = useState<boolean>(false);
 
-  const handleSearch = async () => {
+  const fetchResults = async (page: number) => {
     const searchQuery = query.trim() !== '' ? query : '';
     setLoading(true);
-    const res = await fetch(`/api/search?q=${searchQuery}&page=${currentPage}&pageSize=${pageSize}`);
+    const res = await fetch(`/api/search?q=${searchQuery}&page=${page}&pageSize=${pageSize}`);
     const data = await res.json();
     setResults(Array.isArray(data.documents) ? data.documents : []);
     setTotalResults(data.totalResults);
     setLoading(false);
   };
 
+  const handleSearch = () => {
+    setCurrentPage(1); // Reset to page 1 when a new search is performed
+    fetchResults(1); // Fetch results for the first page
+  };
+
   useEffect(() => {
     const debounceTimeout = setTimeout(() => handleSearch(), 300);
     return () => clearTimeout(debounceTimeout);
-  }, [query, currentPage]);
+  }, [query]);
+
+  useEffect(() => {
+    // Fetch results whenever the current page changes
+    fetchResults(currentPage);
+  }, [currentPage]);
 
   const columnHeaders = [
     'Assignee',
