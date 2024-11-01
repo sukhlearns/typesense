@@ -216,8 +216,8 @@ const SearchableTable = () => {
                     <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.lastMaintenance)}</td>
 
                     <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.location)}</td>
-<td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.manufactured)}</td>
-
+                    <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.manufactured)}</td>
+                    <td className="py-3 px-4 border-b border-gray-300">{result.manufacturer}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{result.model}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{result.modelId}</td>
                     <td className="py-3 px-4 border-b border-gray-300">{result.notes}</td>
