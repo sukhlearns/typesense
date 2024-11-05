@@ -65,7 +65,6 @@ const sortData = (data: Result[], order: 'asc' | 'desc', key: keyof Result) => {
   });
 };
 
-
 const SearchableTable: React.FC = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Result[]>([]);
@@ -94,6 +93,11 @@ const SearchableTable: React.FC = () => {
     const debounceTimeout = setTimeout(() => handleFetchResults(), 300);
     return () => clearTimeout(debounceTimeout);
   }, [query, handleFetchResults]);
+
+  // Reset to page 1 when query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query]);
 
   const sortedResults = useMemo(() => sortData(results, sortOrder, 'assignee'), [results, sortOrder]);
 
@@ -243,7 +247,7 @@ const Table = ({
             {header}
             {header === 'Assignee' && (
               <span className="inline-flex items-center ml-2">
-                {sortOrder === 'asc' ? <i className="fas fa-sort-up" /> : <i className="fas fa-sort-down" />}
+                {sortOrder === 'asc' ? '▲' : '▼'}
               </span>
             )}
           </th>
@@ -256,9 +260,9 @@ const Table = ({
           <tr key={result.id} className="hover:bg-blue-100 transition-colors duration-200">
             <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.assignee)}</td>
             <td className="py-3 px-4 border-b border-gray-300">{result.category}</td>
-            <td className="py-3 px-4 border-b border-gray-300">{result.decommissioned ? 'Yes' : 'No'}</td>
+            <td className="py-3 px-4 border-b border-gray-300">{result.decommissioned ? <i className="fas fa-check text-green-500" /> : <i className="fas fa-times text-red-500" />}</td>
             <td className="py-3 px-4 border-b border-gray-300">{result.id}</td>
-            <td className="py-3 px-4 border-b border-gray-300">{result.inMaintenance ? 'Yes' : 'No'}</td>
+            <td className="py-3 px-4 border-b border-gray-300">{result.inMaintenance ? <i className="fas fa-check text-green-500" /> : <i className="fas fa-times text-red-500" /> }</td>
             <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.lastMaintenance)}</td>
             <td className="py-3 px-4 border-b border-gray-300">{result.location?.stationName}</td>
             <td className="py-3 px-4 border-b border-gray-300">{renderCellValue(result.manufactured)}</td>
@@ -268,7 +272,7 @@ const Table = ({
             <td className="py-3 px-4 border-b border-gray-300">{result.notes}</td>
             <td className="py-3 px-4 border-b border-gray-300">{result.serial}</td>
             <td className="py-3 px-4 border-b border-gray-300">{result.size}</td>
-            <td className="py-3 px-4 border-b border-gray-300">{result.verified ? 'Yes' : 'No'}</td>
+            <td className="py-3 px-4 border-b border-gray-300">{result.verified ? <i className="fas fa-check text-green-500" /> : <i className="fas fa-times text-red-500" /> }</td>
           </tr>
         ))
       ) : (
