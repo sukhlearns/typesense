@@ -76,6 +76,8 @@ const SearchableTable: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedManufacturer, setSelectedManufacturer] = useState('');
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
   const handleFetchResults = useCallback(async () => {
     setLoading(true);
@@ -95,15 +97,20 @@ const SearchableTable: React.FC = () => {
 
   const sortedResults = useMemo(() => sortData(results, sortOrder, 'assignee'), [results, sortOrder]);
 
-  const filteredResults = useMemo(
-    () =>
-      sortedResults.filter(
-        (item) =>
-          (!selectedCategory || item.category === selectedCategory) &&
-          (!selectedManufacturer || item.manufacturer === selectedManufacturer)
-      ),
-    [sortedResults, selectedCategory, selectedManufacturer]
-  );
+  const filteredResults = useMemo(() => {
+    return sortedResults.filter((item) => {
+      const manufacturedDate = new Date(item.manufactured || '');
+      const isWithinRange =
+        (!startDate || manufacturedDate >= new Date(startDate)) &&
+        (!endDate || manufacturedDate <= new Date(endDate));
+
+      return (
+        (!selectedCategory || item.category === selectedCategory) &&
+        (!selectedManufacturer || item.manufacturer === selectedManufacturer) &&
+        isWithinRange
+      );
+    });
+  }, [sortedResults, selectedCategory, selectedManufacturer, startDate, endDate]);
 
   const handleSort = () => {
     setSortOrder((prevOrder) => (prevOrder === 'asc' ? 'desc' : 'asc'));
@@ -147,6 +154,25 @@ const SearchableTable: React.FC = () => {
       <div className="flex space-x-4 mb-6">
         <FilterDropdown label="Category" options={categories} value={selectedCategory} onChange={setSelectedCategory} />
         <FilterDropdown label="Manufacturer" options={manufacturers} value={selectedManufacturer} onChange={setSelectedManufacturer} />
+
+        <div className="flex flex-col">
+          <label className="text-sm font-medium text-gray-700">Start Date:</label>
+          <input
+            type="date"
+            value={startDate || ''}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="mt-2 p-2 border-2 border-gray-400 rounded-md"
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-sm font-medium text-gray-700">End Date:</label>
+          <input
+            type="date"
+            value={endDate || ''}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="mt-2 p-2 border-2 border-gray-400 rounded-md"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto mt-6">
